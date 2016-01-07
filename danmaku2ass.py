@@ -66,6 +66,8 @@ def ProbeCommentFormat(f):
             return 'Tudou'
         elif tmp == '"root":{"total':
             return 'sH5V'
+        elif tmp == '"Comments":[{"':
+            return 'DandanPlayJson'
         elif tmp.strip().startswith('"result'):
             return 'Tudou2'
     elif tmp == '<':
@@ -269,8 +271,31 @@ def ReadCommentsSH5V(f, fontsize):
             logging.warning(_('Invalid comment: %r') % comment)
             continue
 
+def ReadCommentsDandanPlayJosn(f, fontsize):
+    comment_element = json.load(f)
+    mode_map = {1: 0, 4: 1, 5: 2}
+    for i, comment in enumerate(comment_element['Comments']):
+        try:
+            mode = comment['Mode']
+            assert mode in (1, 4, 5)
+            # the 'Timestamp' is start form 1970-01-01T7:00:00
+            timestapm = int(comment['Timestamp']) + (3600 * 7)
+            yield (float(comment['Time']), timestapm, i, str(comment['Message']), mode_map[mode], int(comment['Color']), fontsize, 0, 0)
+        except (AssertionError, AttributeError, IndexError, TypeError, ValueError):
+            logging.warning(_('Invalid comment: %r') % comment)
+            continue
 
-CommentFormatMap = {None: None, 'Niconico': ReadCommentsNiconico, 'Acfun': ReadCommentsAcfun, 'Bilibili': ReadCommentsBilibili, 'Tudou': ReadCommentsTudou, 'Tudou2': ReadCommentsTudou2, 'MioMio': ReadCommentsMioMio, 'sH5V': ReadCommentsSH5V}
+CommentFormatMap = {
+    None: None,
+    'Niconico': ReadCommentsNiconico,
+    'Acfun': ReadCommentsAcfun,
+    'Bilibili': ReadCommentsBilibili,
+    'Tudou': ReadCommentsTudou,
+    'Tudou2': ReadCommentsTudou2,
+    'MioMio': ReadCommentsMioMio,
+    'sH5V': ReadCommentsSH5V,
+    'DandanPlayJson': ReadCommentsDandanPlayJosn
+}
 
 
 def WriteCommentBilibiliPositioned(f, c, width, height, styleid):
